@@ -4,7 +4,7 @@ from pathlib import Path
 from pytest import fixture
 
 from eth_validator_watcher.fee_recipient import (
-    process_fee_recipient,
+    process_fee_recipients,
     metric_wrong_fee_recipient_proposed_block_count,
 )
 from eth_validator_watcher.models import Block, ExecutionBlock, Validators
@@ -58,11 +58,11 @@ def test_execution_is_none():
     slack = Slack()
     counter_before = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
 
-    process_fee_recipient(
+    process_fee_recipients(
         block="A block",  # type: ignore
         index_to_validator={},
         execution=None,
-        expected_fee_recipient="0x1234",
+        expected_fee_recipients=["0x1234"],
         slack=slack,  # type: ignore
     )
 
@@ -76,11 +76,11 @@ def test_fee_recipient_is_none():
     slack = Slack()
     counter_before = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
 
-    process_fee_recipient(
+    process_fee_recipients(
         block="A block",  # type: ignore
         index_to_validator={},
         execution="execution",  # type: ignore
-        expected_fee_recipient=None,
+        expected_fee_recipients=None,
         slack=slack,  # type: ignore
     )
 
@@ -91,11 +91,11 @@ def test_not_our_validator(block: Block):
     slack = Slack()
     counter_before = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
 
-    process_fee_recipient(
+    process_fee_recipients(
         block=block,
         index_to_validator={},
         execution="execution",  # type: ignore
-        expected_fee_recipient="0x1234",
+        expected_fee_recipients=["0x1234"],
         slack=slack,  # type: ignore
     )
 
@@ -109,7 +109,7 @@ def test_our_validator_allright(block: Block):
     slack = Slack()
     counter_before = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
 
-    process_fee_recipient(
+    process_fee_recipients(
         block=block,
         index_to_validator={
             365100: Validator(
@@ -117,7 +117,7 @@ def test_our_validator_allright(block: Block):
             )
         },
         execution="execution",  # type: ignore
-        expected_fee_recipient="0xebec795c9c8bbd61ffc14a6662944748f299cacf",
+        expected_fee_recipients=["0xebec795c9c8bbd61ffc14a6662944748f299cacf"],
         slack=slack,  # type: ignore
     )
 
@@ -131,7 +131,7 @@ def test_our_validator_ok_in_last_tx(block: Block):
     slack = Slack()
     counter_before = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
 
-    process_fee_recipient(
+    process_fee_recipients(
         block=block,
         index_to_validator={
             365100: Validator(
@@ -139,7 +139,7 @@ def test_our_validator_ok_in_last_tx(block: Block):
             )
         },
         execution=Execution(),  # type: ignore
-        expected_fee_recipient="0x760a6314a1d207377271917075f88e520141d55f",
+        expected_fee_recipients=["0x760a6314a1d207377271917075f88e520141d55f"],
         slack=slack,  # type: ignore
     )
 
@@ -153,7 +153,7 @@ def test_our_validator_not_ok_empty_block(block: Block):
     slack = Slack()
     counter_before = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
 
-    process_fee_recipient(
+    process_fee_recipients(
         block=block,
         index_to_validator={
             365100: Validator(
@@ -161,7 +161,7 @@ def test_our_validator_not_ok_empty_block(block: Block):
             )
         },
         execution=ExecutionEmptyBlock(),  # type: ignore
-        expected_fee_recipient="0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        expected_fee_recipients=["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
         slack=slack,  # type: ignore
     )
 
@@ -175,7 +175,7 @@ def test_our_validator_not_ok(block: Block):
     slack = Slack()
     counter_before = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
 
-    process_fee_recipient(
+    process_fee_recipients(
         block=block,
         index_to_validator={
             365100: Validator(
@@ -183,7 +183,51 @@ def test_our_validator_not_ok(block: Block):
             )
         },
         execution=Execution(),  # type: ignore
-        expected_fee_recipient="0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        expected_fee_recipients=["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+        slack=slack,  # type: ignore
+    )
+
+    counter_after = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
+    assert counter_after == counter_before + 1
+
+    assert slack.counter == 1
+
+
+def test_our_validator_allright_multiple_fee_recipients(block: Block):
+    slack = Slack()
+    counter_before = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
+
+    process_fee_recipients(
+        block=block,
+        index_to_validator={
+            365100: Validator(
+                pubkey="0xabcd", effective_balance=32000000000, slashed=False
+            )
+        },
+        execution="execution",  # type: ignore
+        expected_fee_recipients=["0xabcdef1234", "0xebec795c9c8bbd61ffc14a6662944748f299cacf"],
+        slack=slack,  # type: ignore
+    )
+
+    counter_after = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
+    assert counter_after == counter_before
+
+    assert slack.counter == 0
+
+
+def test_our_validator_not_ok_multiple_fee_recipients(block: Block):
+    slack = Slack()
+    counter_before = metric_wrong_fee_recipient_proposed_block_count.collect()[0].samples[0].value  # type: ignore
+
+    process_fee_recipients(
+        block=block,
+        index_to_validator={
+            365100: Validator(
+                pubkey="0xabcd", effective_balance=32000000000, slashed=False
+            )
+        },
+        execution=Execution(),  # type: ignore
+        expected_fee_recipients=["0xabcdfe", "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
         slack=slack,  # type: ignore
     )
 
