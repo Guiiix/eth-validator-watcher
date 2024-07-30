@@ -2,6 +2,7 @@
 
 
 from prometheus_client import Counter
+from typing import List
 
 from .execution import Execution
 from .models import Block, Validators
@@ -13,27 +14,27 @@ metric_wrong_fee_recipient_proposed_block_count = Counter(
 )
 
 
-def process_fee_recipient(
+def process_fee_recipients(
     block: Block,
     index_to_validator: dict[int, Validators.DataItem.Validator],
     execution: Execution | None,
-    expected_fee_recipient: str | None,
+    expected_fee_recipients: List[str] | None,
     slack: Slack | None,
 ) -> None:
     """Check if the fee recipient is the one expected.
 
     Parameters:
-    block                 : The block to check against the fee recipient
-    index_to_validator    : Dictionary with:
+    block                  : The block to check against the fee recipient
+    index_to_validator     : Dictionary with:
         key  : validator index
         value: validator data corresponding to the validator index
-    execution             : Optional execution client
-    expected_fee_recipient: The expected fee recipient
-    slack                 : Optional slack client
+    execution              : Optional execution client
+    expected_fee_recipients: The expected fee recipients
+    slack                  : Optional slack client
     """
 
     # No expected fee recipient set, nothing to do
-    if execution is None or expected_fee_recipient is None:
+    if execution is None or expected_fee_recipients is None:
         return
 
     proposer_index = block.data.message.proposer_index
@@ -53,7 +54,7 @@ def process_fee_recipient(
         block.data.message.body.execution_payload.fee_recipient.lower()
     )
 
-    if actual_fee_recipient == expected_fee_recipient:
+    if actual_fee_recipient in expected_fee_recipients:
         # Allright, we're good
         return
 
@@ -73,9 +74,9 @@ def process_fee_recipient(
 
         if (
             last_transaction.to is not None
-            and expected_fee_recipient == last_transaction.to.lower()
+            and last_transaction.to.lower() in expected_fee_recipients
         ):
-            # The last transaction is to the expected fee recipient
+            # The last transaction is to one of the expected fee recipients
             return
     except ValueError:
         # The block is empty, so we can't check the last transaction

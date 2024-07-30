@@ -17,7 +17,7 @@ from .coinbase import Coinbase
 from .entry_queue import export_duration_sec as export_entry_queue_dur_sec
 from .execution import Execution
 from .exited_validators import ExitedValidators
-from .fee_recipient import process_fee_recipient
+from .fee_recipient import process_fee_recipients
 from .missed_attestations import (
     init_missed_attestations_per_validator_counters,
     process_double_missed_attestations,
@@ -112,7 +112,7 @@ def handler(
         web3signer_url: Optional[str] = Option(
             None, help="URL to web3signer managing keys to watch", show_default=False
         ),
-        fee_recipient: Optional[str] = Option(
+        fee_recipients: Optional[List[str]] = Option(
             None,
             help="Fee recipient address - --execution-url must be set",
             show_default=False,
@@ -201,7 +201,7 @@ def handler(
             remove_first_label,
             labels_file_path,
             web3signer_url,
-            fee_recipient,
+            fee_recipients,
             slack_channel,
             beacon_type,
             relay_url,
@@ -218,7 +218,7 @@ def _handler(
         remove_first_label: bool,
         labels_file_path: Path | None,
         web3signer_url: str | None,
-        fee_recipient: str | None,
+        fee_recipients: List[str] | None,
         slack_channel: str | None,
         beacon_type: BeaconType,
         relays_url: List[str],
@@ -228,14 +228,14 @@ def _handler(
     global our_active_validators_per_validator_gauge
     slack_token = environ.get("SLACK_TOKEN")
 
-    if fee_recipient is not None and execution_url is None:
+    if fee_recipients is not None and execution_url is None:
         raise typer.BadParameter(
             "`execution-url` must be set if you want to use `fee-recipient`"
         )
 
-    if fee_recipient is not None:
+    if fee_recipients is not None:
         try:
-            fee_recipient = eth1_address_lower_0x_prefixed(fee_recipient)
+            fee_recipients = [eth1_address_lower_0x_prefixed(fee_recipient) for fee_recipient in fee_recipients]
         except ValueError:
             raise typer.BadParameter("`fee-recipient` should be a valid ETH1 address")
 
@@ -470,8 +470,8 @@ def _handler(
                 our_labels,
             )
 
-            process_fee_recipient(
-                block, our_active_idx2val, execution, fee_recipient, slack
+            process_fee_recipients(
+                block, our_active_idx2val, execution, fee_recipients, slack
             )
 
         process_sync_committee_reward(beacon, slot, our_active_idx2val, our_labels)
