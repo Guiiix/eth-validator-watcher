@@ -112,7 +112,7 @@ def handler(
         web3signer_url: Optional[str] = Option(
             None, help="URL to web3signer managing keys to watch", show_default=False
         ),
-        fee_recipients: Optional[List[str]] = Option(
+        fee_recipient: Optional[List[str]] = Option(
             None,
             help="Fee recipient address - --execution-url must be set",
             show_default=False,
@@ -201,7 +201,7 @@ def handler(
             remove_first_label,
             labels_file_path,
             web3signer_url,
-            fee_recipients,
+            fee_recipient,
             slack_channel,
             beacon_type,
             relay_url,
