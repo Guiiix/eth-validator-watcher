@@ -306,6 +306,7 @@ def process_rewards(
         )
         for index, validator in net_index_to_validator.items()
         if index in index_to_actual_reward
+        and validator.effective_balance in effective_balance_to_ideal_reward
     ]
 
     unzipped: Tuple[

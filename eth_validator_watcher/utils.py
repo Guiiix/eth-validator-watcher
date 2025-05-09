@@ -1,4 +1,5 @@
 import re
+import sys
 from pathlib import Path
 from time import sleep, time
 from typing import Any, Iterator, Optional, Tuple
@@ -142,12 +143,16 @@ def aggregate_bools(list_of_bools: list[list[bool]]) -> list[bool]:
     ) ==> ValueError
     """
 
-    _, *trash = {len(bits) for bits in list_of_bools}
+    lengths = list({len(bits) for bits in list_of_bools})
+    _, *trash = lengths
 
     if trash != []:
-        raise ValueError("At least one bools has not the same length than others")
+        print(f"At least one bools has not the same length than others: {trash} ({_} list len {len(list_of_bools)})",
+              file=sys.stderr)
+    expected_len = max(lengths)
+    min_len = min(lengths)
 
-    return [any(bools) for bools in zip(*list_of_bools)]  # type:ignore
+    return [any(bools) for bools in zip(*list_of_bools)] + [False for _ in range(expected_len - min_len)]  # type:ignore
 
 
 def apply_mask(items: list[Any], mask: list[bool]) -> set[Any]:
