@@ -6,7 +6,7 @@ import random
 from prometheus_client import Counter
 from requests import Session, codes
 from requests.adapters import HTTPAdapter, Retry
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError, RetryError
 
 from eth_validator_watcher.models import ProposerPayloadDelivered, ProposerDuties, RelayBuilderValidator
 
@@ -131,7 +131,12 @@ class Relays:
             registrations[item.slot] = False
             pubkeys[item.slot] = item.pubkey
         for relay_url in self.__urls:
-            relay_data = self.__builder_validators(relay_url)
+            try:
+                relay_data = self.__builder_validators(relay_url)
+            except RetryError as e:
+                print(f"⚠️ Cannot contact relay {relay_url}")
+                continue
+
             for item in relay_data:
                 if item.slot in registrations and item.entry.message.pubkey == pubkeys[item.slot]:
                     registrations[item.slot] = True
