@@ -113,7 +113,7 @@ def process_suboptimal_attestations(beacon: Beacon, block: Block, slot: int,
     # - Value is a list of boolean where each boolean indicates if the validator
     #   attested optimally
     committee_index_to_validator_attestation_success = aggregate_attestations(
-        block, previous_slot
+        block, previous_slot, duty_slot_to_committee_index_to_validators_index
     )
 
     list_of_validators_index_that_attested_optimally_during_previous_slot = (
@@ -199,7 +199,7 @@ def process_suboptimal_attestations(beacon: Beacon, block: Block, slot: int,
     return our_validators_index_that_did_not_attest_optimally_during_previous_slot
 
 
-def aggregate_attestations(block: Block, slot: int) -> dict[int, list[bool]]:
+def aggregate_attestations(block: Block, slot: int, duty_slot_to_committee_index_to_validators_index) -> dict[int, list[bool]]:
     """Aggregates all attestations for the slot `slot` that are presient
     in block `block`.
 
@@ -249,9 +249,21 @@ def aggregate_attestations(block: Block, slot: int) -> dict[int, list[bool]]:
             aggregated_bools_with_last_bit
         )
 
+        committee_indicies = [index for index, bit in enumerate(attestation.committee_bits) if bit]
+        committee_offset = 0
+
+        for index in committee_indicies:
+            committee = duty_slot_to_committee_index_to_validators_index[attestation.data.slot][index]
+            committee_index_to_list_of_aggregation_bools[index].append(
+                    aggregated_bools[committee_offset:len(committee)]
+            )
+            committee_offset += len(committee)
+
+        """
         committee_index_to_list_of_aggregation_bools[attestation.data.index].append(
             aggregated_bools
         )
+        """
 
     # Finally, we aggregate all attestations
     items = committee_index_to_list_of_aggregation_bools.items()

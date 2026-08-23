@@ -3,6 +3,7 @@
 from enum import StrEnum
 
 from pydantic import BaseModel
+from typing import Optional
 
 
 class Validators(BaseModel):
@@ -61,6 +62,7 @@ class Block(BaseModel):
                         index: int
 
                     aggregation_bits: str
+                    committee_bits: Optional[str] = None
                     data: Data
 
                 class ExecutionPayload(BaseModel):
