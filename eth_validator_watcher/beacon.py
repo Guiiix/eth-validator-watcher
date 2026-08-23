@@ -76,6 +76,7 @@ class Beacon:
             )
         )
 
+        self.__http_retry_not_found.headers.update({"Content-Type": "application/json"})
         self.__http_retry_not_found.mount("http://", adapter_retry_not_found)
         self.__http_retry_not_found.mount("https://", adapter_retry_not_found)
 
