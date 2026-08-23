@@ -14,6 +14,31 @@ metric_wrong_fee_recipient_proposed_block_count = Counter(
 )
 
 
+def is_titan_builder_mev_block(execution: Execution,
+                               block: Block,
+                               last_tx,
+                               fee_recipients: List[str]) -> bool:
+    """
+    Titan Builder MEV blocks use a smart contract with a suicide action instead of a regular transfer.
+    This function uses trace_transaction from EL and check if the smart contract does a suicide with
+    a correct refund address.
+    """
+    try:
+        traces = execution.eth_trace_transaction(last_tx.hash)
+        assert len(traces.result) == 2
+        assert traces.result[0].type == "call"
+        assert traces.result[0].action.get("from") == block.data.message.body.execution_payload.fee_recipient
+        assert traces.result[0].action.get("to") == last_tx.to
+        assert traces.result[1].type == "suicide"
+        assert traces.result[1].action.get("refundAddress") in fee_recipients
+        return True
+    except AssertionError:
+        return False
+    except Exception as e:
+        print(f"Error while checking if transaction {last_tx.hash} is Titan tx: {e}")
+        return False
+
+
 def process_fee_recipients(
     block: Block,
     index_to_validator: dict[int, Validators.DataItem.Validator],
@@ -77,6 +102,11 @@ def process_fee_recipients(
             and last_transaction.to.lower() in expected_fee_recipients
         ):
             # The last transaction is to one of the expected fee recipients
+            return
+
+        # Last transaction may be a smart contract... Trace the tx
+        if is_titan_builder_mev_block(
+                execution, block, last_transaction, expected_fee_recipients):
             return
     except ValueError:
         # The block is empty, so we can't check the last transaction

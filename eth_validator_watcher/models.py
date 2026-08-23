@@ -155,6 +155,7 @@ class ExecutionBlock(BaseModel):
     class Result(BaseModel):
         class Transaction(BaseModel):
             to: str | None
+            hash: str | None
 
         transactions: list[Transaction]
 
@@ -222,3 +223,15 @@ class SyncCommittee(BaseModel):
         validators: list[int]
 
     data: Data
+
+class ExecutionTransactionTraces(BaseModel):
+    class TransactionTace(BaseModel):
+        action: dict
+        type: str
+    result: list[TransactionTace]
+
+class EthTraceTransaction(BaseModel):
+    jsonrpc: str = "2.0"
+    method: str = "trace_transaction"
+    params: list
+    id: str = "1"

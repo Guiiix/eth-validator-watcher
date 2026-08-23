@@ -4,7 +4,7 @@
 from requests import Session, codes
 from requests.adapters import HTTPAdapter, Retry
 
-from eth_validator_watcher.models import EthGetBlockByHashRequest, ExecutionBlock
+from eth_validator_watcher.models import EthGetBlockByHashRequest, ExecutionBlock, EthTraceTransaction, ExecutionTransactionTraces
 
 
 class Execution:
@@ -40,3 +40,15 @@ class Execution:
         response.raise_for_status()
         execution_block_dict = response.json()
         return ExecutionBlock(**execution_block_dict)
+
+    def eth_trace_transaction(self, hash: str) -> ExecutionTransactionTraces:
+        """Trace transaction.
+
+        Parameters:
+        hash: Hash of the transaction to trace
+        """
+        request_body = EthTraceTransaction(params=[hash])
+        response = self.__http.post(self.__url, json=request_body.model_dump())
+        response.raise_for_status()
+        execution_tx_traces_dict = response.json()
+        return ExecutionTransactionTraces(**execution_tx_traces_dict)
