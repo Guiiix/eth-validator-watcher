@@ -456,6 +456,7 @@ def _handler(
 
         delta_sec = MISSED_BLOCK_TIMEOUT_SEC - (time() - slot_start_time_sec)
         sleep(max(0, delta_sec))
+        started_time = time()
 
         potential_block = beacon.get_potential_block(slot)
 
@@ -503,3 +504,4 @@ def _handler(
 
         if idx == 0:
             start_http_server(8000)
+        print(f"Slot {slot} processed in {time() - started_time}s")
