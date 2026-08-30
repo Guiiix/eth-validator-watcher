@@ -6,7 +6,7 @@ import random
 from prometheus_client import Counter
 from requests import Session, codes
 from requests.adapters import HTTPAdapter, Retry
-from requests.exceptions import ConnectionError, RetryError
+from requests.exceptions import ConnectionError, RequestException
 
 from eth_validator_watcher.models import ProposerPayloadDelivered, ProposerDuties, RelayBuilderValidator
 
@@ -83,12 +83,16 @@ class Relays:
             return
 
         if len(our_labels) == 0:
-            if not any(
-                (
-                    self.__is_proposer_payload_delivered(relay_url, slot)
-                    for relay_url in self.__urls
-                )
-            ):
+            known_builder = False
+            for relay_url in self.__urls:
+                try:
+                    if self.__is_proposer_payload_delivered(relay_url, slot):
+                        known_builder = True
+                        break
+                except RequestException:
+                    print(f"⚠️ Cannot contact relay {relay_url}")
+                    continue
+            if not known_builder:
                 metric_bad_relay_count.inc()
                 print(
                     "🟧 Block proposed with unknown builder (may be a locally built block)"
@@ -96,7 +100,11 @@ class Relays:
         else:
             known_builder = False
             for relay_url in self.__urls:
-                payload = self.__proposer_payload_delivered(relay_url, slot)
+                try:
+                    payload = self.__proposer_payload_delivered(relay_url, slot)
+                except RequestException:
+                    print(f"⚠️ Cannot contact relay {relay_url}")
+                    continue
                 if payload is not None:
                     known_builder = True
                     pubkey = payload.proposer_pubkey
@@ -133,7 +141,7 @@ class Relays:
         for relay_url in self.__urls:
             try:
                 relay_data = self.__builder_validators(relay_url)
-            except RetryError as e:
+            except RequestException:
                 print(f"⚠️ Cannot contact relay {relay_url}")
                 continue
 
