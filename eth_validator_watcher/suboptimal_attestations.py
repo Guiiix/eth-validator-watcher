@@ -249,21 +249,39 @@ def aggregate_attestations(block: Block, slot: int, duty_slot_to_committee_index
             aggregated_bools_with_last_bit
         )
 
-        committee_indicies = [index for index, bit in enumerate(attestation.committee_bits) if bit]
+        if attestation.committee_bits is None:
+            # Before Electra, an attestation covers a single committee, given by
+            # `data.index`, and `aggregation_bits` holds one bit per validator of
+            # that committee.
+            committee_index_to_list_of_aggregation_bools[
+                attestation.data.index
+            ].append(aggregated_bools)
+
+            continue
+
+        # Since Electra, `data.index` is always 0 and a single attestation can cover
+        # several committees: `committee_bits` tells which ones, and
+        # `aggregation_bits` is the concatenation of their bits, committee index
+        # ascending.
+        # `committee_bits` is given under the same (hexadecimal, little endian)
+        # shape than `aggregation_bits`, but without boundary bit as its size is
+        # fixed.
+        committee_indicies = [
+            index
+            for index, bit in enumerate(
+                switch_endianness(convert_hex_to_bools(attestation.committee_bits))
+            )
+            if bit
+        ]
+
         committee_offset = 0
 
         for index in committee_indicies:
             committee = duty_slot_to_committee_index_to_validators_index[attestation.data.slot][index]
             committee_index_to_list_of_aggregation_bools[index].append(
-                    aggregated_bools[committee_offset:len(committee)]
+                    aggregated_bools[committee_offset:committee_offset + len(committee)]
             )
             committee_offset += len(committee)
-
-        """
-        committee_index_to_list_of_aggregation_bools[attestation.data.index].append(
-            aggregated_bools
-        )
-        """
 
     # Finally, we aggregate all attestations
     items = committee_index_to_list_of_aggregation_bools.items()
